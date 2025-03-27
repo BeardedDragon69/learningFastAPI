@@ -1,445 +1,140 @@
-# from datetime import datetime, timedelta, timezone
-# from typing import Annotated
-# from fastapi import Depends, APIRouter, status, HTTPException
-# from pydantic import BaseModel
-# from models import Users
-# from passlib.context import CryptContext
-# from sqlalchemy.orm import Session
-# from database import sessionLocal
-# from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-# from jose import jwt, JWTError
-# import jwt
-
-# # app = FastAPI() instead of this we have to write the line below 
-
-# router = APIRouter(
-#        prefix='/auth',
-#        tags=['auth']
-# )
-
-# # For the JWT to work, create a secret key and algorithm
-# secretKey = 'a7a0dcb6a3adea2df22260da47d3db09f57994762022083150a4c21daa4497c1'
-# Algorithm = 'HS256'
-
-# # Database session dependency
-# def getDb():
-#     db = sessionLocal()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
-# dbDependencyInjection = Annotated[Session, Depends(getDb)]
-
-# # Password hashing setup
-# bcryptContext = CryptContext(schemes=['bcrypt'], deprecated='auto')
-
-# # OAuth2 token authentication
-# oAuth2Bearer = OAuth2PasswordBearer(tokenUrl='/auth/token')
-
-# # Create a user BaseModel for input validation
-# class CreateUser(BaseModel):
-#     username: str
-#     firstName: str
-#     lastName: str
-#     password: str
-#     email: str
-#     role: str
-
-# class Token(BaseModel):
-#     accessToken: str
-#     tokenName: str
-
-# # Function to authenticate a user
-# def authenticateUser(username: str, password: str, db: Session):
-#     user = db.query(Users).filter(Users.username == username).first()
-#     if not user or not bcryptContext.verify(password, user.hashedPassword):
-#         return False
-#     return user
-
-
-
-# # Function to create a JWT access token
-# def createAccessToken(userName: str, userId: int, expiresDelta: timedelta):
-#     encode = {
-#         'sub': userName,
-#         'id': userId,
-#         'exp': int((datetime.now(timezone.utc) + expiresDelta).timestamp())  # ✅ FIXED: exp is already an int
-#     }
-#     return jwt.encode(encode, secretKey, algorithm=Algorithm)  # ✅ FIXED: Ensure 'algorithm' is lowercase
-
-# # Function to create a JWT access token using PyJWT
-# def createNewAccessToken(userName: str, userId: int, expiresDelta: timedelta):
-#     payload = {
-#         'sub': userName,
-#         'id': userId,
-#         'exp': int((datetime.now(timezone.utc) + expiresDelta).timestamp())  # ✅ FIXED: exp is already an int
-#     }
-#     return jwt.encode(payload, secretKey, algorithm=Algorithm)  # ✅ FIXED: Ensure 'algorithm' is lowercase
-
-
-# # Function to get the current authenticated user
-# async def getCurrentUser(token: Annotated[str, Depends(oAuth2Bearer)]):
-# #     try:
-#         payload = jwt.decode(token, secretKey, algorithms=[Algorithm])
-#         userName: str = payload.get('sub')
-#         userId: int = payload.get('id')
-
-#         if userName is None or userId is None:
-#             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-#                                 detail="User cannot be verified")
-#         return {'username': userName, 'id': userId}
-
-# #     except JWTError:  # ✅ FIX: Catch and handle JWT errors properly
-# #         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-# #                             detail="Invalid token or expired session")
-
-# # Endpoint to create a new user
-# @router.post("/", status_code=status.HTTP_201_CREATED)
-# async def createUser(createUser: CreateUser, db: dbDependencyInjection):
-#     newUser = Users(
-#         email=createUser.email,
-#         username=createUser.username,
-#         firstName=createUser.firstName,
-#         lastName=createUser.lastName,
-#         role=createUser.role,
-#         hashedPassword=bcryptContext.hash(createUser.password),
-#         isActive=True
-#     )
-
-#     db.add(newUser)
-#     db.commit()
-#     db.refresh(newUser)  # ✅ FIX: Ensure user data is refreshed after commit
-
-#     return {"message": "User created successfully"}
-
-# # Endpoint to log in and get an access token
-# @router.post("/token", response_model=Token)
-# async def loginAcessToken(formData: Annotated[OAuth2PasswordRequestForm, Depends()], db: dbDependencyInjection):
-#     user = authenticateUser(formData.username, formData.password, db)
-#     if not user:
-#         raise HTTPException(status_code=400, detail='Invalid username or password')
-
-#     token = createAccessToken(user.username, user.id, timedelta(minutes=5))
-#     print("Generated Token:", token)  # ✅ DEBUG: Print generated token for verification
-
-#     return {'accessToken': token, 'tokenName': 'bearer'}
-
-# # Endpoint to fetch the currently authenticated user
-# @router.get("/me")
-# async def getCurrentUserDetails(currentUser: Annotated[dict, Depends(getCurrentUser)], db: dbDependencyInjection):
-#     """Fetch the currently authenticated user using the getCurrentUser function."""
-#     user = db.query(Users).filter(Users.username == currentUser["username"]).first()
-
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-#     return {
-#         "username": user.username,
-#         "userId": user.id,
-#         "email": user.email,
-#         "firstName": user.firstName,
-#         "lastName": user.lastName,
-#         "role": user.role
-#     }
-
-# # Endpoint to get user details by username
-# @router.get("/getuser/{userName}")
-# async def getUser(userName: str, db: dbDependencyInjection):
-#     foundUser = db.query(Users).filter(Users.username == userName).first()
-
-#     if foundUser:
-#         return foundUser
-#     else:
-#         raise HTTPException(status_code=404, detail="User not found")  # ✅ FIX: Use HTTPException for consistency
-
-
-''' Version 2 from Chatgpt'''
-
-# from datetime import datetime, timedelta, timezone
-# from typing import Annotated
-# from fastapi import Depends, APIRouter, status, HTTPException
-# from pydantic import BaseModel
-# from models import Users
-# from passlib.context import CryptContext
-# from sqlalchemy.orm import Session
-# from database import sessionLocal
-# from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
-# from jose import jwt, JWTError  # ✅ Ensure only python-jose is used
-
-# # Setup FastAPI Router
-# router = APIRouter(
-#        prefix='/auth',
-#        tags=['auth']
-# )
-
-# # JWT Configuration
-# SECRET_KEY = 'a7a0dcb6a3adea2df22260da47d3db09f57994762022083150a4c21daa4497c1'
-# ALGORITHM = 'HS256'
-
-# # Database session dependency
-# def getDb():
-#     db = sessionLocal()
-#     try:
-#         yield db
-#     finally:
-#         db.close()
-
-# dbDependencyInjection = Annotated[Session, Depends(getDb)]
-
-# # Password Hashing
-# bcryptContext = CryptContext(schemes=['bcrypt'], deprecated='auto')
-
-# # OAuth2 Authentication
-# oAuth2Bearer = OAuth2PasswordBearer(tokenUrl='/auth/token')
-
-# # User Input Models
-# class CreateUser(BaseModel):
-#     username: str
-#     firstName: str
-#     lastName: str
-#     password: str
-#     email: str
-#     role: str
-
-# class Token(BaseModel):
-#     accessToken: str
-#     tokenName: str
-
-# # Authenticate User
-# def authenticateUser(username: str, password: str, db: Session):
-#     user = db.query(Users).filter(Users.username == username).first()
-#     if not user or not bcryptContext.verify(password, user.hashedPassword):
-#         return False
-#     return user
-
-# # ✅ FIX: Create JWT Access Token (python-jose)
-# def createAccessToken(userName: str, userId: int, expiresDelta: timedelta):
-#     expiration = datetime.now(timezone.utc) + expiresDelta  # ✅ FIX: Use datetime directly
-#     encode = {
-#         'sub': userName,
-#         'id': userId,
-#         'exp': expiration
-#     }
-#     token = jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)  # ✅ FIX: Use SECRET_KEY
-#     print("Generated Token:", token)  # ✅ DEBUG: Print to check if token is generated correctly
-#     return token
-
-# # ✅ FIX: Improved Function to Get Current User
-# async def getCurrentUser(token: Annotated[str, Depends(oAuth2Bearer)]):
-#     try:
-#         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])  # ✅ FIX: Use SECRET_KEY
-#         userName: str = payload.get('sub')
-#         userId: int = payload.get('id')
-
-#         if userName is None or userId is None:
-#             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
-#         return {'username': userName, 'id': userId}
-#     except JWTError as e:
-#         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid token: {str(e)}")
-
-# # ✅ FIX: Create User Endpoint
-# @router.post("/", status_code=status.HTTP_201_CREATED)
-# async def createUser(createUser: CreateUser, db: dbDependencyInjection):
-#     newUser = Users(
-#         email=createUser.email,
-#         username=createUser.username,
-#         firstName=createUser.firstName,
-#         lastName=createUser.lastName,
-#         role=createUser.role,
-#         hashedPassword=bcryptContext.hash(createUser.password),
-#         isActive=True
-#     )
-
-#     db.add(newUser)
-#     db.commit()
-#     db.refresh(newUser)  # ✅ Ensure user data is refreshed after commit
-
-#     return {"message": "User created successfully"}
-
-# # ✅ FIX: Login Endpoint
-# @router.post("/token", response_model=Token)
-# async def loginAcessToken(formData: Annotated[OAuth2PasswordRequestForm, Depends()], db: dbDependencyInjection):
-#     user = authenticateUser(formData.username, formData.password, db)
-#     if not user:
-#         raise HTTPException(status_code=400, detail='Invalid username or password')
-
-#     token = createAccessToken(user.username, user.id, timedelta(minutes=5))
-#     print("Generated Token:", token)  # ✅ DEBUG: Print generated token
-
-#     return {'accessToken': token, 'tokenName': 'bearer'}
-
-# # ✅ FIX: Fetch Current User
-# @router.get("/me")
-# async def getCurrentUserDetails(currentUser: Annotated[dict, Depends(getCurrentUser)], db: dbDependencyInjection):
-#     user = db.query(Users).filter(Users.username == currentUser["username"]).first()
-
-#     if not user:
-#         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-
-#     return {
-#         "username": user.username,
-#         "userId": user.id,
-#         "email": user.email,
-#         "firstName": user.firstName,
-#         "lastName": user.lastName,
-#         "role": user.role
-#     }
-
-# # ✅ FIX: Get User by Username
-# @router.get("/getuser/{userName}")
-# async def getUser(userName: str, db: dbDependencyInjection):
-#     foundUser = db.query(Users).filter(Users.username == userName).first()
-
-#     if foundUser:
-#         return foundUser
-#     else:
-#         raise HTTPException(status_code=404, detail="User not found")  # ✅ FIX: Use HTTPException
-
-'''My Version with the role added in jwt'''
-
-
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, datetime, timezone
 from typing import Annotated
-from fastapi import Depends, FastAPI, APIRouter, status, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
+from starlette import status
+from database import sessionLocal
 from models import Users
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
-from database import sessionLocal
-from fastapi import FastAPI, Depends, status
-from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from jose import jwt, JWTError
 
-# app = FastAPI() instead of this we have to write the line below 
+import os
+from dotenv import load_dotenv
+
+
+# load all the env files
+
+load_dotenv("key.env")
 
 router = APIRouter(
-       prefix='/auth',
-       tags=['auth']
-
+    prefix='/auth',
+    tags=['auth']
 )
 
 
-#for the jwt to work create a secret key and algorithm
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
-secretKey = 'a7a0dcb6a3adea2df22260da47d3db09f57994762022083150a4c21daa4497c1'
-algorithm = 'HS256'
-
-def getDb():
-       db = sessionLocal()
-
-       try:
-              yield db
-       finally:
-              db.close()
-
-       
-dbDependencyInjection =  Annotated[Session, Depends(getDb)]
-
-bcryptContext = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
-oAuth2Bearer = OAuth2PasswordBearer(tokenUrl='auth/token')
+print(SECRET_KEY)
 
 
+if SECRET_KEY  is None:
+    raise ValueError("Secret key is not set in environment variable")
 
 
+bcrypt_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
+oauth2_bearer = OAuth2PasswordBearer(tokenUrl='auth/token')
 
-#create a user basemodel for input validation
 
-class CreateUser(BaseModel):
-       username: str
-       firstName: str
-       lastName: str
-       password: str
-       email: str
-       role: str
+class CreateUserRequest(BaseModel):
+    username: str
+    email: str
+    first_name: str
+    last_name: str
+    password: str
+    role: str
+
 
 class Token(BaseModel):
-       accessToken: str
-       tokenName: str
-
-def authenticateUser(username:str, password: str, db):
-       user = db.query(Users).filter(Users.username == username).first()
-       if not user: 
-              return False
-       if not bcryptContext.verify(password,user.hashedPassword):
-              return False
-       return user
+    access_token: str
+    token_type: str
 
 
-def createAcessToken(userName: str, userId: int, role: str, expiresDelta: timedelta):
-       encode = {'sub': userName, 'id': userId, 'role':role}
-       expires = datetime.now(timezone.utc) + expiresDelta
-       encode.update({'exp':expires})
-       return jwt.encode(encode,secretKey,algorithm=algorithm)
+def get_db():
+    db = sessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
-async def getCurrentUser(token: Annotated[str, Depends(oAuth2Bearer)]):
-       # try:
-              payload = jwt.decode(token, secretKey, algorithms=algorithm)
-              userName: str = payload.get('sub')
-              userId : int = payload.get('id')
+db_dependency = Annotated[Session, Depends(get_db)]
 
-              if userName is None or userId is None:
-                     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                                         detail="User cannot be verified")
-              return{'username':userName, 'id':userId}
-              
-       # except JWTError:
-       #        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-       #                                   detail="User cannot be verified")
 
+def authenticate_user(username: str, password: str, db):
+    user = db.query(Users).filter(Users.username == username).first()
+    if not user:
+        return False
+    if not bcrypt_context.verify(password, user.hashedPassword):
+        return False
+    return user
+
+
+def create_access_token(username: str, user_id: int, role: str, expires_delta: timedelta):
+    encode = {
+        'sub': username,
+        'id': user_id,
+        'role': role,
+        'exp': datetime.now(timezone.utc) + expires_delta
+        }
+    
+    return jwt.encode(encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+
+
+
+
+async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
+    print(SECRET_KEY)
+    try:
+        
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])  #, options={"verify_exp": False}    --you can add this to the jwt decode as an argument to decode stuff
+        username: str = payload.get('sub')
+        user_id: int = payload.get('id')
+        user_role: str = payload.get('role')
+
+        if username is None or user_id is None:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail='Could not validate user.')
+        
+        return {'username': username, 'id': user_id, 'user_role': user_role}
+    
+    except JWTError:
+
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Could not validate user.')
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
-async def createUser(createUser: CreateUser, db: dbDependencyInjection):
-       createUser = Users(
-              email = createUser.email,
-              username = createUser.username,
-              firstName =  createUser.firstName,
-              lastName = createUser.lastName,
-              role = createUser.role,
-              hashedPassword = bcryptContext.hash(createUser.password),
-              isActive = True
-       )
+async def create_user(db: db_dependency,
+                      create_user_request: CreateUserRequest):
+    create_user_model = Users(
+        email=create_user_request.email,
+        username=create_user_request.username,
+        first_name=create_user_request.first_name,
+        last_name=create_user_request.last_name,
+        role=create_user_request.role,
+        hashed_password=bcrypt_context.hash(create_user_request.password),
+        is_active=True
+    )
 
-       db.add(createUser)
-       db.commit()
-
-
-
-@router.post("/token", response_model= Token)
-async def loginAcessToken(formData: Annotated[OAuth2PasswordRequestForm, Depends()],
-                          db: dbDependencyInjection):
-       
-
-       user = authenticateUser(formData.username, formData.password, db)
-       if not user:
-              raise HTTPException(status_code=400, detail='Invalid Username or password')
-       
-       token = createAcessToken(user.username,user.id, user.role, timedelta(minutes=5))
-       print ("Generated Token:", token)
-
-       return {'accessToken':token,'tokenName':'bearer'}
+    db.add(create_user_model)
+    db.commit()
 
 
-@router.get("/me")
-async def getCurrentUserDetails(currentUser: Annotated[str, Depends(getCurrentUser)], db: dbDependencyInjection):
-    """Fetch the currently authenticated user using the getCurrentUser function."""
-    user = db.query(Users).filter(Users.username == currentUser["username"]).first()
-
+@router.post("/token", response_model=Token)
+async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+                                 db: db_dependency):
+    user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail='Could not validate user.')
+    token = create_access_token(user.username, user.id, user.role, timedelta(minutes=20))
 
-    return {
-        "username": user.username,
-        "userId": user.id,
-        "email": user.email,
-        "firstName": user.firstName,
-        "lastName": user.lastName,
-        "role": user.role
-    }
+    return {'access_token': token, 'token_type': 'bearer'}
 
 
 
@@ -448,13 +143,3 @@ async def getCurrentUserDetails(currentUser: Annotated[str, Depends(getCurrentUs
 
 
 
-
-
-@router.get("/getuser/{userName}")
-async def getUser(userName: str, db:dbDependencyInjection):
-       foundUser = db.query(Users).filter(Users.username == userName).first()
-
-       if foundUser:
-              return foundUser
-       else:
-              return "user not found"

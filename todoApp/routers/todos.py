@@ -10,7 +10,7 @@ from models import Todos
 from database import engine, sessionLocal
 from typing import Annotated
 from routers import auth
-from .auth import getCurrentUser
+from .auth import get_current_user
 
 
 
@@ -43,7 +43,7 @@ def getDb():
 dbDependencyInjection =  Annotated[Session, Depends(getDb)]
 
 #creating a dependency injection for getting the current user of the session
-userDependency =  Annotated[dict, Depends(getCurrentUser)]
+userDependency =  Annotated[dict, Depends(get_current_user)]
 
 
 

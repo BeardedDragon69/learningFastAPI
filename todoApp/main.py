@@ -4,8 +4,8 @@ import models
 
 from database import engine
 
-from routers import auth, todos, auth2
-from jose import jwt
+from routers import auth, todos
+# from todoApp.routers import auth
 
 
 
@@ -17,7 +17,7 @@ models.Base.metadata.create_all(bind= engine)
 
 # app.include_router(auth.router) #auth file name router is the name of the variable
 app.include_router(todos.router)
-app.include_router(auth2.router)
+app.include_router(auth.router)
 
 
 
