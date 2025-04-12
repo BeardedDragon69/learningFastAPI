@@ -27,7 +27,7 @@ router = APIRouter(
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
-print(SECRET_KEY)
+# print(SECRET_KEY)
 
 
 if SECRET_KEY  is None:
@@ -88,7 +88,7 @@ def create_access_token(username: str, user_id: int, role: str, expires_delta: t
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
-    print(SECRET_KEY)
+    # print(SECRET_KEY)
     try:
         
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])  #, options={"verify_exp": False}    --you can add this to the jwt decode as an argument to decode stuff
@@ -114,11 +114,11 @@ async def create_user(db: db_dependency,
     create_user_model = Users(
         email=create_user_request.email,
         username=create_user_request.username,
-        first_name=create_user_request.first_name,
-        last_name=create_user_request.last_name,
+        firstName=create_user_request.first_name,
+        lastName=create_user_request.last_name,
         role=create_user_request.role,
-        hashed_password=bcrypt_context.hash(create_user_request.password),
-        is_active=True
+        hashedPassword=bcrypt_context.hash(create_user_request.password),
+        isActive=True
     )
 
     db.add(create_user_model)
@@ -135,11 +135,3 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     token = create_access_token(user.username, user.id, user.role, timedelta(minutes=20))
 
     return {'access_token': token, 'token_type': 'bearer'}
-
-
-
-
-
-
-
-
