@@ -1,0 +1,2 @@
+the schema is needed to deserialize the json strings in our database
+

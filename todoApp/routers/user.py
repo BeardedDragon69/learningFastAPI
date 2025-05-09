@@ -20,6 +20,9 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM", "HS256")
 
 
+bcryptContext = CryptContext(schemes=['bcrypt'], deprecated = 'auto')
+
+
 
 
 
@@ -64,6 +67,25 @@ async def getUserDetails(db: dbDependencyInjection,token: Annotated[str, Depends
               return {"username":username, 
                       "userId": userId,
                       "userRole": userRole}
+       
+
+@router.put("/updateCurrentPassword", status_code=status.HTTP_201_CREATED)
+async def updatePassword(newPassword: str, token: Annotated[str, Depends(oauth2Bearer)],
+                         db: dbDependencyInjection, username: str):
+       currentUser = get_current_user(token)
+       user = db.query(Users).filter(Users.username == username).first()
+
+       if currentUser is None:
+              raise HTTPException(status_code=404, detail="Either the user is not logged in or the entered password does not match")
+
+       else:
+              Users(
+                     hashedPassword= bcryptContext.hash(newPassword)
+              )
+              return f"Updated Succesfully"
+       
+
+              
        
 
 
